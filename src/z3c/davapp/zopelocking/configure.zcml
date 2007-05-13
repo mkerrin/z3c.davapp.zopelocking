@@ -39,7 +39,7 @@
        />
   </class>
 
-  <class class=".lockingutils.IndirectToken">
+  <class class=".indirecttokens.IndirectToken">
     <require
        permission="zope.View"
        attributes="context utility principal_ids started annotations roottoken"

@@ -215,4 +215,8 @@ def test_suite():
                              checker = z3c.etree.testing.xmlOutputChecker,
                              setUp = lockingSetUp,
                              tearDown = lockingTearDown),
+        doctest.DocTestSuite("z3c.davapp.zopelocking.indirecttokens",
+                             checker = z3c.etree.testing.xmlOutputChecker,
+                             setUp = lockingSetUp,
+                             tearDown = lockingTearDown),
         ))
