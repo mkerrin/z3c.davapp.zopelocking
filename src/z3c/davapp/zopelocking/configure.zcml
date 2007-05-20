@@ -1,19 +1,19 @@
 <configure xmlns="http://namespaces.zope.org/zope">
 
   <adapter
-     factory=".lockingutils.DAVSupportedlock"
+     factory=".properties.DAVSupportedlock"
      />
 
   <adapter
-     factory=".lockingutils.DAVLockdiscovery"
+     factory=".properties.DAVLockdiscovery"
      />
 
   <adapter
-     factory=".lockingutils.DAVLockmanager"
+     factory=".manager.DAVLockmanager"
      trusted="1"
      />
 
-  <class class=".lockingutils.DAVLockmanager">
+  <class class=".manager.DAVLockmanager">
     <require
        permission="zope.View"
        attributes="getActivelock islocked islockable"
@@ -26,13 +26,13 @@
   </class>
 
   <adapter
-     factory=".lockingutils.DAVActiveLock"
+     factory=".properties.DAVActiveLock"
      for="zope.interface.Interface
           z3c.dav.interfaces.IWebDAVRequest"
      provides="z3c.dav.coreproperties.IActiveLock"
      />
 
-  <class class=".lockingutils.DAVActiveLockAdapter">
+  <class class=".properties.DAVActiveLockAdapter">
     <require
        permission="zope.View"
        interface="z3c.dav.coreproperties.IActiveLock"

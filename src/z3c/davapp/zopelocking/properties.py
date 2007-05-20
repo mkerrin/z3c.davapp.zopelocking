@@ -23,26 +23,17 @@ $Id: lockingutils.py 75023 2007-05-02 18:42:54Z mkerrin $
 """
 __docformat__ = 'restructuredtext'
 
-import time
-import random
-from BTrees.OOBTree import OOBTree
 from zope import component
 from zope import interface
-from zope.locking import tokens
 import zope.locking.interfaces
-from zope.security.proxy import removeSecurityProxy
 from zope.traversing.browser.absoluteurl import absoluteURL
-from zope.app.container.interfaces import IReadContainer
 
 from z3c.dav.coreproperties import ILockEntry, IDAVSupportedlock, \
      IActiveLock
 import z3c.dav.interfaces
 
 import interfaces
-import indirecttokens
-
-_randGen = random.Random(time.time())
-
+from manager import WEBDAV_LOCK_KEY
 
 ################################################################################
 #
@@ -78,6 +69,7 @@ def DAVSupportedlock(context, request):
       >>> DAVSupportedlock(None, None) is None
       True
 
+      >>> from zope.locking import tokens
       >>> from zope.locking.utility import TokenUtility
       >>> util = TokenUtility()
       >>> component.getGlobalSiteManager().registerUtility(
@@ -124,8 +116,6 @@ class DAVSupportedlockAdapter(object):
         return [ExclusiveLockEntry(), SharedLockEntry()]
 
 
-WEBDAV_LOCK_KEY = "z3c.dav.lockingutils.info"
-
 @component.adapter(interface.Interface, z3c.dav.interfaces.IWebDAVRequest)
 @interface.implementer(IActiveLock)
 def DAVActiveLock(context, request):
@@ -137,11 +127,14 @@ def DAVActiveLock(context, request):
       >>> import datetime
       >>> import pytz
       >>> from cStringIO import StringIO
+      >>> from BTrees.OOBTree import OOBTree
       >>> from zope.interface.verify import verifyObject
       >>> import zope.locking.utils
+      >>> from zope.locking import tokens
       >>> from zope.locking.utility import TokenUtility
       >>> from zope.locking.adapters import TokenBroker
       >>> from z3c.dav.publisher import WebDAVRequest
+      >>> import indirecttokens
 
       >>> def hackNow():
       ...     return datetime.datetime(2007, 4, 7, tzinfo = pytz.utc)
@@ -514,7 +507,9 @@ def DAVLockdiscovery(context, request):
     `{DAV:}lockdiscovery` property.
 
       >>> import datetime
+      >>> from BTrees.OOBTree import OOBTree
       >>> from zope.interface.verify import verifyObject
+      >>> from zope.locking import tokens
       >>> from zope.locking.utility import TokenUtility
       >>> from zope.locking.adapters import TokenBroker
       >>> from z3c.dav.publisher import WebDAVRequest
@@ -596,230 +591,3 @@ class DAVLockdiscoveryAdapter(object):
         if adapter is None:
             return None
         return [adapter]
-
-
-class DAVLockmanager(object):
-    """
-
-      >>> from zope.interface.verify import verifyObject
-      >>> from zope.locking import utility, utils
-      >>> from zope.locking.adapters import TokenBroker
-
-      >>> file = Demo()
-
-    Before we register a ITokenUtility utility make sure that the DAVLockmanager
-    is not lockable.
-
-      >>> adapter = DAVLockmanager(file)
-      >>> adapter.islockable()
-      False
-
-    Now create and register a ITokenUtility utility.
-
-      >>> util = utility.TokenUtility()
-      >>> component.getGlobalSiteManager().registerUtility(
-      ...    util, zope.locking.interfaces.ITokenUtility)
-      >>> component.getGlobalSiteManager().registerAdapter(
-      ...    TokenBroker, (interface.Interface,),
-      ...    zope.locking.interfaces.ITokenBroker)
-
-      >>> import datetime
-      >>> import pytz
-      >>> def hackNow():
-      ...     return datetime.datetime(2006, 7, 25, 23, 49, 51)
-      >>> oldNow = utils.now
-      >>> utils.now = hackNow
-
-    Test the DAVLockmanager implements the descired interface.
-
-      >>> adapter = DAVLockmanager(file)
-      >>> verifyObject(z3c.dav.interfaces.IDAVLockmanager, adapter)
-      True
-
-    The adapter should also be lockable.
-
-      >>> adapter.islockable()
-      True
-
-    Lock with an exclusive lock token.
-
-      >>> roottoken = adapter.lock(u'exclusive', u'write',
-      ...    u'Michael', datetime.timedelta(seconds = 3600), '0')
-      >>> util.get(file) == roottoken
-      True
-      >>> zope.locking.interfaces.IExclusiveLock.providedBy(roottoken)
-      True
-
-      >>> adapter.islocked()
-      True
-
-      >>> activelock = adapter.getActivelock()
-      >>> activelock.lockscope
-      [u'exclusive']
-      >>> activelock.locktype
-      [u'write']
-      >>> activelock.depth
-      '0'
-      >>> activelock.timeout
-      u'Second-3600'
-      >>> activelock.lockroot
-      '/dummy'
-      >>> activelock.owner
-      u'Michael'
-
-      >>> adapter.refreshlock(datetime.timedelta(seconds = 7200))
-      >>> adapter.getActivelock().timeout
-      u'Second-7200'
-
-      >>> adapter.unlock()
-      >>> util.get(file) is None
-      True
-      >>> adapter.islocked()
-      False
-      >>> adapter.getActivelock() is None
-      True
-
-    Shared locking support.
-
-      >>> roottoken = adapter.lock(u'shared', u'write', u'Michael',
-      ...    datetime.timedelta(seconds = 3600), '0')
-      >>> util.get(file) == roottoken
-      True
-      >>> zope.locking.interfaces.ISharedLock.providedBy(roottoken)
-      True
-
-      >>> activelock = adapter.getActivelock()
-      >>> activelock.lockscope
-      [u'shared']
-      >>> activelock.locktoken #doctest:+ELLIPSIS
-      ['opaquelocktoken:...
-
-      >>> adapter.unlock()
-
-    Recursive lock suport.
-
-      >>> demofolder = DemoFolder()
-      >>> demofolder['demo'] = file
-
-      >>> adapter = DAVLockmanager(demofolder)
-      >>> roottoken = adapter.lock(u'exclusive', u'write', u'MichaelK',
-      ...    datetime.timedelta(seconds = 3600), 'infinity')
-
-      >>> demotoken = util.get(file)
-      >>> interfaces.IIndirectToken.providedBy(demotoken)
-      True
-
-      >>> activelock = adapter.getActivelock()
-      >>> activelock.lockroot
-      '/dummy/'
-      >>> DAVLockmanager(file).getActivelock().lockroot
-      '/dummy/'
-      >>> absoluteURL(file, None)
-      '/dummy/dummy'
-      >>> activelock.lockscope
-      [u'exclusive']
-
-    Already locked support.
-
-      >>> adapter.lock(u'exclusive', u'write', u'Michael',
-      ...    datetime.timedelta(seconds = 100), 'infinity') #doctest:+ELLIPSIS
-      Traceback (most recent call last):
-      ...
-      AlreadyLocked...
-      >>> adapter.islocked()
-      True
-
-      >>> adapter.unlock()
-
-    Some error conditions.
-
-      >>> adapter.lock(u'notexclusive', u'write', u'Michael',
-      ...    datetime.timedelta(seconds = 100), 'infinity') # doctest:+ELLIPSIS
-      Traceback (most recent call last):
-      ...
-      UnprocessableError: ...
-
-    Cleanup
-
-      >>> component.getGlobalSiteManager().unregisterUtility(
-      ...    util, zope.locking.interfaces.ITokenUtility)
-      True
-      >>> component.getGlobalSiteManager().unregisterAdapter(
-      ...    TokenBroker, (interface.Interface,),
-      ...    zope.locking.interfaces.ITokenBroker)
-      True
-      >>> utils.now = oldNow
-
-    """
-    interface.implements(z3c.dav.interfaces.IDAVLockmanager)
-    component.adapts(interface.Interface)
-
-    def __init__(self, context):
-        self.context = self.__parent__ = context
-
-    def generateLocktoken(self):
-        return "opaquelocktoken:%s-%s-00105A989226:%.03f" % \
-               (_randGen.random(), _randGen.random(), time.time())
-
-    def islockable(self):
-        utility = component.queryUtility(zope.locking.interfaces.ITokenUtility,
-                                         context = self.context, default = None)
-        return utility is not None
-
-    def lock(self, scope, type, owner, duration, depth,
-             roottoken = None, context = None):
-        if context is None:
-            context = self.context
-
-        tokenBroker = zope.locking.interfaces.ITokenBroker(context)
-        if tokenBroker.get():
-            raise z3c.dav.interfaces.AlreadyLocked(
-                context, message = u"Context or subitem is already locked.")
-
-        if roottoken is None:
-            if scope == u"exclusive":
-                roottoken = tokenBroker.lock(duration = duration)
-            elif scope == u"shared":
-                roottoken = tokenBroker.lockShared(duration = duration)
-            else:
-                raise z3c.dav.interfaces.UnprocessableError(
-                    self.context,
-                    message = u"Invalid lockscope supplied to the lock manager")
-
-            annots = roottoken.annotations.get(WEBDAV_LOCK_KEY, None)
-            if annots is None:
-                annots = roottoken.annotations[WEBDAV_LOCK_KEY] = OOBTree()
-            annots["owner"] = owner
-            annots["token"] = self.generateLocktoken()
-            annots["depth"] = depth
-        else:
-            indirecttoken = indirecttokens.IndirectToken(context, roottoken)
-            ## XXX - using removeSecurityProxy - is this right, has
-            ## it seems wrong
-            removeSecurityProxy(roottoken).utility.register(indirecttoken)
-
-        if depth == "infinity" and IReadContainer.providedBy(context):
-            for subob in context.values():
-                self.lock(scope, type, owner, duration, depth,
-                          roottoken, subob)
-
-        return roottoken
-
-    def getActivelock(self, request = None):
-        if self.islocked():
-            token = zope.locking.interfaces.ITokenBroker(self.context).get()
-            return DAVActiveLockAdapter(token, self.context, request)
-        return None
-
-    def refreshlock(self, timeout):
-        token = zope.locking.interfaces.ITokenBroker(self.context).get()
-        token.duration = timeout
-
-    def unlock(self):
-        tokenBroker = zope.locking.interfaces.ITokenBroker(self.context)
-        token = tokenBroker.get()
-        token.end()
-
-    def islocked(self):
-        tokenBroker = zope.locking.interfaces.ITokenBroker(self.context)
-        return tokenBroker.get() is not None

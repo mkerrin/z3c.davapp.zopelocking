@@ -211,7 +211,11 @@ def lockingTearDown(test):
 
 def test_suite():
     return unittest.TestSuite((
-        doctest.DocTestSuite("z3c.davapp.zopelocking.lockingutils",
+        doctest.DocTestSuite("z3c.davapp.zopelocking.properties",
+                             checker = z3c.etree.testing.xmlOutputChecker,
+                             setUp = lockingSetUp,
+                             tearDown = lockingTearDown),
+        doctest.DocTestSuite("z3c.davapp.zopelocking.manager",
                              checker = z3c.etree.testing.xmlOutputChecker,
                              setUp = lockingSetUp,
                              tearDown = lockingTearDown),
