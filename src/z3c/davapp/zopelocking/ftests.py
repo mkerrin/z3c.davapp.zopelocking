@@ -538,7 +538,7 @@ class LOCKTestCase(z3c.dav.ftests.dav.DAVTestCase):
         response = self.publish("/a/r2", basic = "mgr:mgrpw",
                                 env = {"REQUEST_METHOD": "LOCK",
                                        "TIMEOUT": "Second-3600",
-                                       "IF": "<%s>" % locktoken})
+                                       "IF": "(<%s>)" % locktoken})
 
         self.assertEqual(response.getStatus(), 200)
         assertXMLEqual(response.getBody(), """<ns0:prop xmlns:ns0="DAV:">
@@ -570,7 +570,7 @@ class LOCKTestCase(z3c.dav.ftests.dav.DAVTestCase):
         response = self.publish("/testresource", basic = "mgr:mgrpw",
                                 env = {"REQUEST_METHOD": "LOCK",
                                        "TIMEOUT": "Second-3600",
-                                       "IF": "<BADLOCKTOKEN>"},
+                                       "IF": "(<BADLOCKTOKEN>)"},
                                 handle_errors = True)
 
         self.assertEqual(response.getStatus(), 412)
@@ -600,7 +600,7 @@ class LOCKTestCase(z3c.dav.ftests.dav.DAVTestCase):
         response = self.publish("/testresource", basic = "mgr:mgrpw",
                                 env = {"REQUEST_METHOD": "LOCK",
                                        "TIMEOUT": "Second-3600",
-                                       "IF": "<BADLOCKTOKEN>"},
+                                       "IF": "(<BADLOCKTOKEN>)"},
                                 handle_errors = True)
 
         self.assertEqual(response.getStatus(), 412)
