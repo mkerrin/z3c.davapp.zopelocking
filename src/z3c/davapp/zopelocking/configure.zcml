@@ -28,7 +28,7 @@
   <adapter
      factory=".properties.DAVActiveLock"
      for="zope.interface.Interface
-          z3c.dav.interfaces.IWebDAVRequest"
+          zope.publisher.interfaces.http.IHTTPRequest"
      provides="z3c.dav.coreproperties.IActiveLock"
      />
 

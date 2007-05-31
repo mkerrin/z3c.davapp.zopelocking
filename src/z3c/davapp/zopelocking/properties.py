@@ -26,6 +26,7 @@ __docformat__ = 'restructuredtext'
 from zope import component
 from zope import interface
 import zope.locking.interfaces
+import zope.publisher.interfaces.http
 from zope.traversing.browser.absoluteurl import absoluteURL
 
 from z3c.dav.coreproperties import ILockEntry, IDAVSupportedlock, \
@@ -116,7 +117,8 @@ class DAVSupportedlockAdapter(object):
         return [ExclusiveLockEntry(), SharedLockEntry()]
 
 
-@component.adapter(interface.Interface, z3c.dav.interfaces.IWebDAVRequest)
+@component.adapter(interface.Interface,
+                   zope.publisher.interfaces.http.IHTTPRequest)
 @interface.implementer(IActiveLock)
 def DAVActiveLock(context, request):
     """
