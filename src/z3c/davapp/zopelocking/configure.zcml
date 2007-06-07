@@ -16,26 +16,12 @@
   <class class=".manager.DAVLockmanager">
     <require
        permission="zope.View"
-       attributes="getActivelock islocked islockable"
+       attributes="islocked islockable"
        />
 
     <require
        permission="zope.ManageContent"
        attributes="lock refreshlock unlock"
-       />
-  </class>
-
-  <adapter
-     factory=".properties.DAVActiveLock"
-     for="zope.interface.Interface
-          zope.publisher.interfaces.http.IHTTPRequest"
-     provides="z3c.dav.coreproperties.IActiveLock"
-     />
-
-  <class class=".properties.DAVActiveLockAdapter">
-    <require
-       permission="zope.View"
-       interface="z3c.dav.coreproperties.IActiveLock"
        />
   </class>
 

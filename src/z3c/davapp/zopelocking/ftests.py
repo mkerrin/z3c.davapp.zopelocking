@@ -306,28 +306,34 @@ class LOCKTestCase(z3c.dav.ftests.dav.DAVTestCase):
         locktoken = locktoken[1:-1] # remove the <> characters
 
         token = self.utility.get(self.getRootFolder())
-        self.assertEqual(
-            token.annotations["z3c.dav.lockingutils.info"]["token"],
-            locktoken)
+        tokendata = token.annotations["z3c.dav.lockingutils.info"]
+        self.assert_(locktoken in tokendata)
+        assertXMLEqual(
+            tokendata[locktoken]["owner"],
+            """<owner xmlns="DAV:">
+<href>http://example.org/~ejw/contact.html</href>
+</owner>""")
         token = self.utility.get(self.getRootFolder()["a"])
-        self.assertEqual(
-            token.annotations["z3c.dav.lockingutils.info"]["token"],
-            locktoken)
+        self.assert_(
+            locktoken in token.annotations["z3c.dav.lockingutils.info"])
 
         root = self.getRootFolder()
         self.assertEqual(
-            IDAVLockmanager(root).getActivelock().locktoken[0], locktoken)
+            IDAVLockmanager(root).getActivelock(locktoken).locktoken[0],
+            locktoken)
         self.assertEqual(
-            IDAVLockmanager(root["a"]["r2"]).getActivelock().locktoken[0],
+            IDAVLockmanager(root["a"]["r2"]).getActivelock(
+                locktoken).locktoken[0],
             locktoken)
 
         request = z3c.dav.publisher.WebDAVRequest(
             StringIO(""), {"HTTP_HOST": "localhost"})
 
-        lockroot = IDAVLockmanager(root).getActivelock(request).lockroot
+        lockroot = IDAVLockmanager(root).getActivelock(
+            locktoken, request).lockroot
         self.assertEqual(lockroot, "http://localhost")
         lockroot = IDAVLockmanager(root["a"]["r3"]).getActivelock(
-            request).lockroot
+            locktoken, request).lockroot
         self.assertEqual(lockroot, "http://localhost")
 
     def test_lock_collection_depth_inf_withlockedsubitem(self):
@@ -418,7 +424,8 @@ class LOCKTestCase(z3c.dav.ftests.dav.DAVTestCase):
         self.assertEqual(response.getStatus(), 200)
         self.assertEqual(response.getHeader("content-type"), "application/xml")
         locktoken = response.getHeader("lock-token")
-        self.assert_(locktoken and locktoken[0] == "<" and locktoken[-1] == ">")
+        self.assert_(
+            locktoken and locktoken[0] == "<" and locktoken[-1] == ">")
 
         httpresponse = self.checkPropfind(
             "/a/r2", env = {"DEPTH": "0", "CONTENT_TYPE": "text/xml"},
@@ -485,16 +492,17 @@ class LOCKTestCase(z3c.dav.ftests.dav.DAVTestCase):
             StringIO(""), {"HTTP_HOST": "localhost"})
 
         lockmanager = IDAVLockmanager(rootfolder)
-        self.assertEqual(lockmanager.getActivelock(request).lockroot,
-                         "http://localhost/a")
+        self.assertEqual(lockmanager.getActivelock(
+            locktoken, request).lockroot, "http://localhost/a")
         self.assertEqual(
-            lockmanager.getActivelock().locktoken[0], locktoken[1:-1])
+            lockmanager.getActivelock(locktoken).locktoken[0], locktoken)
 
         lockmanager = IDAVLockmanager(subresource)
-        self.assertEqual(lockmanager.getActivelock(request).lockroot,
-                         "http://localhost/a")
         self.assertEqual(
-            lockmanager.getActivelock().locktoken[0], locktoken[1:-1])
+            lockmanager.getActivelock(locktoken, request).lockroot,
+            "http://localhost/a")
+        self.assertEqual(
+            lockmanager.getActivelock(locktoken).locktoken[0], locktoken)
 
     def test_lock_invalid_depth(self):
         file = self.addResource("/testresource", "some file content",
@@ -528,10 +536,13 @@ class LOCKTestCase(z3c.dav.ftests.dav.DAVTestCase):
         owner = """<D:owner xmlns:D="DAV:">
 <D:href>mailto:michael</D:href>
 </D:owner>"""
-        lockmanager.lock(u"exclusive", u"write", owner,
-                         datetime.timedelta(seconds = 1000), "infinity")
-        locktoken = lockmanager.getActivelock().locktoken[0]
-        self.assertEqual(lockmanager.getActivelock().timeout, u"Second-1000")
+        locktoken = lockmanager.lock(u"exclusive", u"write", owner,
+                                     datetime.timedelta(seconds = 1000),
+                                     "infinity")
+        ltoken = lockmanager.getActivelock(locktoken).locktoken[0]
+        self.assert_(ltoken == locktoken)
+        self.assertEqual(
+            lockmanager.getActivelock(locktoken).timeout, u"Second-1000")
         transaction.commit()
         self.logout()
 
@@ -629,17 +640,17 @@ class UNLOCKTestCase(z3c.dav.ftests.dav.DAVTestCase):
 
         lockmanager = IDAVLockmanager(file)
         self.assertEqual(lockmanager.islocked(), False)
-        lockmanager.lock(scope = "exclusive", type = "write",
-                         owner = """<D:owner xmlns:D="DAV:">
+        locktoken = lockmanager.lock(
+            scope = "exclusive", type = "write",
+            owner = """<D:owner xmlns:D="DAV:">
   <D:href>mailto:michael@linux</D:href>
 </D:owner>""",
-                         duration = datetime.timedelta(100),
-                         depth = "0")
+            duration = datetime.timedelta(100),
+            depth = "0")
         transaction.commit()
 
         lockmanager = IDAVLockmanager(file)
         self.assertEqual(lockmanager.islocked(), True)
-        locktoken = lockmanager.getActivelock().locktoken[0]
 
         # end the current interaction
         self.logout()
