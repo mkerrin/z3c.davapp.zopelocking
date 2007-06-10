@@ -39,4 +39,10 @@
       set_attributes="expiration duration remaining_duration" />
   </class>
 
+  <subscriber
+     for="zope.locking.interfaces.IEndableToken
+          zope.locking.interfaces.ITokenEndedEvent"
+     handler=".indirecttokens.removeEndedTokens"
+     />
+
 </configure>

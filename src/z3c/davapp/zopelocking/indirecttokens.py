@@ -17,6 +17,7 @@ specification.
 """
 
 import persistent
+import zope.component
 import zope.interface
 import zope.locking.interfaces
 import zope.locking.tokens
@@ -34,7 +35,6 @@ class IndirectToken(persistent.Persistent):
 
     Some initial setup including creating some demo content.
 
-      >>> import zope.component
       >>> from zope.locking import utility, utils
       >>> util = utility.TokenUtility()
       >>> zope.component.getGlobalSiteManager().registerUtility(
@@ -142,7 +142,9 @@ class IndirectToken(persistent.Persistent):
       True
       >>> len(lockroot.annotations[INDIRECT_INDEX_KEY])
       3
-      >>> removeEndedTokens(ev)
+      >>> ev.object is lockroot
+      True
+      >>> removeEndedTokens(lockroot, ev)
       >>> len(lockroot.annotations[INDIRECT_INDEX_KEY])
       0
 
@@ -428,7 +430,9 @@ class IndirectToken(persistent.Persistent):
         return self.roottoken.end()
 
 
-def removeEndedTokens(event):
+@zope.component.adapter(zope.locking.interfaces.IEndableToken,
+                        zope.locking.interfaces.ITokenEndedEvent)
+def removeEndedTokens(object, event):
     """subscriber handler for ITokenEndedEvent"""
     assert zope.locking.interfaces.ITokenEndedEvent.providedBy(event)
     roottoken = event.object
