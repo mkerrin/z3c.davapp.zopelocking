@@ -258,17 +258,9 @@ class LOCKTestCase(z3c.dav.ftests.dav.DAVTestCase):
             request_body = body,
             handle_errors = True)
 
-        self.assertEqual(response.getStatus(), 207)
-        self.assertEqual(response.getHeader("content-type"), "application/xml")
-
-        expectedbody = """<ns0:multistatus xmlns:ns0="DAV:">
-<ns0:response>
-  <ns0:href>http://localhost/testlockedfile</ns0:href>
-  <ns0:status>HTTP/1.1 423 Locked</ns0:status>
-</ns0:response></ns0:multistatus>"""
-
-        respbody = response.getBody()
-        assertXMLEqual(respbody, expectedbody)
+        self.assertEqual(response.getStatus(), 423)
+        self.assertEqual(response.getHeader("content-type"), None)
+        self.assertEqual(response.getBody(), "")
 
         lockmanager = IDAVLockmanager(file)
         self.assertEqual(lockmanager.islocked(), True)
