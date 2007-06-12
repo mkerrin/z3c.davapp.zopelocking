@@ -322,7 +322,7 @@ class IndirectToken(persistent.Persistent):
       >>> indirecttoken.utility = util
       Traceback (most recent call last):
       ...
-      ValueError: Indirect tokens must be registered withsame utility has the root token
+      ValueError: Indirect tokens must be registered with the same utility has the root token
 
     Cleanup test.
 
@@ -353,7 +353,7 @@ class IndirectToken(persistent.Persistent):
                 root = self.roottoken
                 if root.utility != value:
                     raise ValueError("Indirect tokens must be registered with" \
-                                     "same utility has the root token")
+                                     " the same utility has the root token")
                 index = root.annotations.get(INDIRECT_INDEX_KEY, None)
                 if index is None:
                     index = root.annotations[INDIRECT_INDEX_KEY] = \
@@ -446,5 +446,17 @@ def removeEndedTokens(object, event):
         roottoken.utility.register(token)
         del index[key_ref]
 
-# TODO - need subscriber incase a user tries to add a object has a
-# descendent to the lock object.
+
+# Can we restrict this further by saying only for certain types of objects.
+@zope.component.adapter(
+    zope.interface.Interface, zope.app.container.interfaces.IObjectAddedEvent)
+def checkObjectAdded(object, event):
+    parent = object.__parent__
+    utility = zope.component.queryUtility(
+        zope.locking.interfaces.ITokenUtility, context = parent)
+    if utility:
+        token = utility.get(parent)
+        if token is not None:
+            if interfaces.IIndirectToken.providedBy(token):
+                token = token.roottoken
+            utility.register(IndirectToken(object, token))
