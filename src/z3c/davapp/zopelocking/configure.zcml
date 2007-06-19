@@ -16,7 +16,7 @@
   <class class=".manager.DAVLockmanager">
     <require
        permission="zope.View"
-       attributes="islockable"
+       attributes="islocked islockable"
        />
 
     <require
