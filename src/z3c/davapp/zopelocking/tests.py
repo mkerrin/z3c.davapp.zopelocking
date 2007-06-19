@@ -19,7 +19,8 @@ import unittest
 import zope.component
 import zope.interface
 from zope.testing import doctest
-from zope.security.testing import Principal, Participation
+from zope.security.testing import Principal
+from zope.publisher.browser import TestRequest
 from zope.security.management import newInteraction, endInteraction, \
      queryInteraction
 import zope.event
@@ -115,7 +116,8 @@ def lockingSetUp(test):
     z3c.etree.testing.etreeSetup(test)
 
     # create principal
-    participation = Participation(Principal('michael'))
+    participation = TestRequest()
+    participation.setPrincipal(Principal('michael'))
     if queryInteraction() is not None:
         queryInteraction().add(participation)
     else:

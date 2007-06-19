@@ -445,18 +445,3 @@ def removeEndedTokens(object, event):
         # token has ended so it should be removed via the register method
         roottoken.utility.register(token)
         del index[key_ref]
-
-
-# Can we restrict this further by saying only for certain types of objects.
-@zope.component.adapter(
-    zope.interface.Interface, zope.app.container.interfaces.IObjectAddedEvent)
-def checkObjectAdded(object, event):
-    parent = object.__parent__
-    utility = zope.component.queryUtility(
-        zope.locking.interfaces.ITokenUtility, context = parent)
-    if utility:
-        token = utility.get(parent)
-        if token is not None:
-            if interfaces.IIndirectToken.providedBy(token):
-                token = token.roottoken
-            utility.register(IndirectToken(object, token))

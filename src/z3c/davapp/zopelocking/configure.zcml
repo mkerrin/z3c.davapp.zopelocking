@@ -16,7 +16,7 @@
   <class class=".manager.DAVLockmanager">
     <require
        permission="zope.View"
-       attributes="islocked islockable"
+       attributes="islockable"
        />
 
     <require
@@ -43,6 +43,12 @@
      for="zope.locking.interfaces.IEndableToken
           zope.locking.interfaces.ITokenEndedEvent"
      handler=".indirecttokens.removeEndedTokens"
+     />
+
+  <subscriber
+     for="zope.interface.Interface
+          zope.app.container.interfaces.IObjectAddedEvent"
+     handler=".manager.indirectlyLockObjectOnAdd"
      />
 
 </configure>

@@ -20,9 +20,11 @@ from BTrees.OOBTree import OOBTree
 import zope.component
 import zope.interface
 import zope.security.management
+import zope.publisher.interfaces.http
 from zope.app.container.interfaces import IReadContainer
 import z3c.dav.interfaces
 import z3c.dav.locking
+import z3c.dav.ifvalidator
 
 import interfaces
 import indirecttokens
@@ -33,10 +35,19 @@ WEBDAV_LOCK_KEY = "z3c.dav.lockingutils.info"
 class DAVLockmanager(object):
     """
 
+      >>> import UserDict
       >>> from zope.interface.verify import verifyObject
       >>> from zope.locking import utility, utils
       >>> from zope.locking.adapters import TokenBroker
       >>> from zope.traversing.browser.absoluteurl import absoluteURL
+      >>> from zope.app.container.contained import ObjectAddedEvent
+
+      >>> class ReqAnnotation(UserDict.IterableUserDict):
+      ...    zope.interface.implements(zope.annotation.interfaces.IAnnotations)
+      ...    def __init__(self, request):
+      ...        self.data = request._environ.setdefault('annotation', {})
+      >>> zope.component.getGlobalSiteManager().registerAdapter(
+      ...    ReqAnnotation, (zope.publisher.interfaces.http.IHTTPRequest,))
 
       >>> file = Demo()
 
@@ -74,7 +85,8 @@ class DAVLockmanager(object):
       >>> adapter.islockable()
       True
 
-    Lock with an exclusive lock token.
+    Exclusive lock token
+    --------------------
 
       >>> locktoken = adapter.lock(u'exclusive', u'write',
       ...    u'Michael', datetime.timedelta(seconds = 3600), '0')
@@ -128,7 +140,8 @@ class DAVLockmanager(object):
       ...
       ConflictError: The context is not locked, so we can't unlock it.
 
-    Shared locking support.
+    Shared locking
+    --------------
 
       >>> locktoken = adapter.lock(u'shared', u'write', u'Michael',
       ...    datetime.timedelta(seconds = 3600), '0')
@@ -141,14 +154,112 @@ class DAVLockmanager(object):
       >>> activelock.locktoken #doctest:+ELLIPSIS
       ['opaquelocktoken:...
 
-      >>> util.get(file) == activelock.token
+      >>> sharedlocktoken = util.get(file)
+      >>> sharedlocktoken == activelock.token
       True
       >>> zope.locking.interfaces.ISharedLock.providedBy(activelock.token)
       True
 
-      >>> adapter.unlock(locktoken)
+    Make sure that the meta-data on the lock token is correct.
 
-    Recursive lock suport.
+      >>> len(sharedlocktoken.annotations[WEBDAV_LOCK_KEY])
+      2
+      >>> sharedlocktoken.annotations[WEBDAV_LOCK_KEY]['principal_ids']
+      ['michael']
+      >>> len(sharedlocktoken.annotations[WEBDAV_LOCK_KEY][locktoken])
+      2
+      >>> sharedlocktoken.annotations[WEBDAV_LOCK_KEY][locktoken]['owner']
+      u'Michael'
+      >>> sharedlocktoken.annotations[WEBDAV_LOCK_KEY][locktoken]['depth']
+      '0'
+      >>> sharedlocktoken.duration
+      datetime.timedelta(0, 3600)
+      >>> sharedlocktoken.principal_ids
+      frozenset(['michael'])
+
+    We can have multiple WebDAV shared locks on a resource. We implement
+    this by storing the data for the second lock token in the annotations.
+
+      >>> locktoken2 = adapter.lock(u'shared', u'write', u'Michael 2',
+      ...    datetime.timedelta(seconds = 1800), '0')
+      >>> len(sharedlocktoken.annotations[WEBDAV_LOCK_KEY])
+      3
+
+    We need to keep track of the principal associated with the lock token
+    our selves as we can only create one shared lock token with zope.locking,
+    and after removing the first shared lock the zope.locking token will
+    be removed.
+
+      >>> sharedlocktoken.annotations[WEBDAV_LOCK_KEY]['principal_ids']
+      ['michael', 'michael']
+      >>> sharedlocktoken.annotations[WEBDAV_LOCK_KEY][locktoken2]['owner']
+      u'Michael 2'
+      >>> sharedlocktoken.annotations[WEBDAV_LOCK_KEY][locktoken2]['depth']
+      '0'
+
+    Note that the timeout is shared across the two WebDAV tokens. After
+    creating the second shared lock the duration changed to the last lock
+    taken out. We need to do this in order to make sure that the token is
+    ended at some point. What we probable want to do here is to take the
+    largest remaining duration so that a lock token doesn't expire earlier
+    then expected but might last slightly longer then expected for some one.
+
+      >>> sharedlocktoken.duration
+      datetime.timedelta(0, 1800)
+
+    After unlocking the first first locktoken the information for this token
+    is removed.
+
+      >>> adapter.unlock(locktoken)
+      >>> util.get(file) == sharedlocktoken
+      True
+      >>> len(sharedlocktoken.annotations[WEBDAV_LOCK_KEY])
+      2
+      >>> sharedlocktoken.annotations[WEBDAV_LOCK_KEY]['principal_ids']
+      ['michael']
+      >>> locktoken in sharedlocktoken.annotations[WEBDAV_LOCK_KEY]
+      False
+      >>> locktoken2 in sharedlocktoken.annotations[WEBDAV_LOCK_KEY]
+      True
+
+      >>> adapter.unlock(locktoken2)
+
+      >>> util.get(file) is None
+      True
+
+    If an exclusive lock already exists on a file from an other application
+    then this should fail with an already locked response.
+
+      >>> exclusivelock = util.register(
+      ...    zope.locking.tokens.ExclusiveLock(file, 'michael'))
+      >>> adapter.lock(u'shared', u'write', u'Michael2',
+      ...    datetime.timedelta(seconds = 3600), '0') #doctest:+ELLIPSIS
+      Traceback (most recent call last):
+      ...
+      AlreadyLocked: <z3c.davapp.zopelocking.tests.Demo object at ...>: None
+      >>> exclusivelock.end()
+
+    If a shared lock is taken out on the resource, then this lock token is
+    probable not annotated with the extra information required by webdav.
+
+      >>> sharedlock = util.register(
+      ...    zope.locking.tokens.SharedLock(file, ('michael',)))
+      >>> len(sharedlock.annotations)
+      0
+      >>> locktoken = adapter.lock(u'shared', u'write', u'Michael 2',
+      ...    datetime.timedelta(seconds = 3600), '0')
+      >>> len(sharedlock.annotations[WEBDAV_LOCK_KEY])
+      2
+      >>> sharedlock.annotations[WEBDAV_LOCK_KEY]['principal_ids']
+      ['michael']
+      >>> locktoken in sharedlock.annotations[WEBDAV_LOCK_KEY]
+      True
+      >>> sharedlock.principal_ids
+      frozenset(['michael'])
+      >>> sharedlock.end()
+
+    Recursive lock suport
+    ---------------------
 
       >>> demofolder = DemoFolder()
       >>> demofolder['demo'] = file
@@ -171,7 +282,25 @@ class DAVLockmanager(object):
       >>> activelock.lockscope
       [u'exclusive']
 
-    Already locked support.
+    If a collection is locked with an infinite depth lock then all member
+    resources are indirectly locked. Any resource that is added to this
+    collection then becomes indirectly locked against the lockroot for
+    the collection.
+
+      >>> file2 = Demo()
+      >>> demofolder['file2'] = file2
+      >>> indirectlyLockObjectOnAdd(file2,
+      ...    ObjectAddedEvent(file2, demofolder, 'file2'))
+      >>> file2lock = util.get(file2)
+      >>> interfaces.IIndirectToken.providedBy(file2lock)
+      True
+      >>> file2lock.roottoken == util.get(demofolder)
+      True
+
+    Already locked
+    --------------
+
+    Adapter is now defined on the demofolder.
 
       >>> adapter.lock(u'exclusive', u'write', u'Michael',
       ...    datetime.timedelta(seconds = 100), 'infinity') #doctest:+ELLIPSIS
@@ -180,13 +309,19 @@ class DAVLockmanager(object):
       AlreadyLocked...
       >>> adapter.islocked()
       True
-      >>> activelock = adapter.getActivelock(locktoken)
-      >>> len(activelock.locktoken)
-      1
 
       >>> adapter.unlock(locktoken[0])
 
-    Some error conditions.
+      >>> locktoken = DAVLockmanager(file).lock(u'shared', u'write',
+      ...    u'Michael', datetime.timedelta(seconds = 3600), '0')
+      >>> adapter.lock(u'shared', u'write', u'Michael 2',
+      ...    datetime.timedelta(seconds = 3600), 'infinity') #doctest:+ELLIPSIS
+      Traceback (most recent call last):
+      ...
+      AlreadyLocked:...
+
+    Some error conditions
+    ---------------------
 
       >>> adapter.lock(u'notexclusive', u'write', u'Michael',
       ...    datetime.timedelta(seconds = 100), 'infinity') # doctest:+ELLIPSIS
@@ -195,7 +330,11 @@ class DAVLockmanager(object):
       UnprocessableError: ...
 
     Cleanup
+    -------
 
+      >>> zope.component.getGlobalSiteManager().unregisterAdapter(
+      ...    ReqAnnotation, (zope.publisher.interfaces.http.IHTTPRequest,))
+      True
       >>> zope.component.getGlobalSiteManager().unregisterUtility(
       ...    util, zope.locking.interfaces.ITokenUtility)
       True
@@ -264,7 +403,17 @@ class DAVLockmanager(object):
                 annots = roottoken.annotations[WEBDAV_LOCK_KEY] = OOBTree()
                 annots["principal_ids"] = [principal_id]
             else:
+                if not zope.locking.interfaces.ISharedLock.providedBy(roottoken):
+                    # We need to some how figure out how to add preconditions
+                    # code to the exceptions. As a 'no-conflicting-lock'
+                    # precondition code is valid here. 
+                    raise z3c.dav.interfaces.AlreadyLocked(
+                        self.context,
+                        message = u"""A conflicting lock already exists for
+                                      this resource""")
+
                 roottoken.add((principal_id,))
+                roottoken.duration = duration
                 if WEBDAV_LOCK_KEY not in roottoken.annotations:
                     # Locked by an alternative application
                     annots = roottoken.annotations[WEBDAV_LOCK_KEY] = OOBTree()
@@ -338,3 +487,28 @@ def getPrincipalId():
     principal_id = principal_ids[0]
 
     return principal_id
+
+
+@zope.component.adapter(
+    zope.interface.Interface, zope.app.container.interfaces.IObjectAddedEvent)
+def indirectlyLockObjectOnAdd(object, event):
+    interaction = zope.security.management.queryInteraction()
+
+    if interaction:
+        request = interaction.participations[0]
+        if zope.publisher.interfaces.http.IHTTPRequest.providedBy(request) \
+               and z3c.dav.ifvalidator.matchesIfHeader(object, request):
+            parent = object.__parent__
+            utility = zope.component.queryUtility(
+                zope.locking.interfaces.ITokenUtility, context = parent)
+            # XXX - potentially two problems here. One the object is already
+            # locked then the if we have created a conflicting lock. Two the
+            # lock on the collection might not be an infinite lock and as such
+            # we should not lock the object.
+            if utility and utility.get(object) is None:
+                token = utility.get(parent)
+                if token is not None:
+                    if interfaces.IIndirectToken.providedBy(token):
+                        token = token.roottoken
+                    utility.register(
+                        indirecttokens.IndirectToken(object, token))
