@@ -24,6 +24,7 @@ from zope.publisher.browser import TestRequest
 from zope.security.management import newInteraction, endInteraction, \
      queryInteraction
 import zope.event
+from zope.traversing.interfaces import IPhysicallyLocatable
 from zope.app.testing import placelesssetup
 from zope.component.interfaces import IComponentLookup
 from zope.app.component.site import SiteManagerAdapter
@@ -63,6 +64,19 @@ class DemoFolder(UserDict.UserDict):
         value.__name__ = key
         value.__parent__ = self
         self.data[key] = value
+
+
+class PhysicallyLocatable(object):
+    zope.interface.implements(IPhysicallyLocatable)
+
+    def __init__(self, context):
+        self.context = context
+
+    def getRoot(self):
+        return root
+
+    def getPath(self):
+        return '/' + self.context.__name__
 
 
 class DemoKeyReference(object):
@@ -116,8 +130,8 @@ def lockingSetUp(test):
     z3c.etree.testing.etreeSetup(test)
 
     # create principal
-    participation = TestRequest()
-    participation.setPrincipal(Principal('michael'))
+    participation = TestRequest(environ = {"REQUEST_METHOD": "PUT"})
+    participation.setPrincipal(Principal("michael"))
     if queryInteraction() is not None:
         queryInteraction().add(participation)
     else:
@@ -131,6 +145,8 @@ def lockingSetUp(test):
     gsm.registerAdapter(DemoKeyReference,
                         (IDemo,),
                         zope.app.keyreference.interfaces.IKeyReference)
+    gsm.registerAdapter(PhysicallyLocatable, (Demo,))
+    gsm.registerAdapter(PhysicallyLocatable, (DemoFolder,))
     gsm.registerAdapter(DemoKeyReference, (IDemoFolder,),
                         zope.app.keyreference.interfaces.IKeyReference)
     gsm.registerAdapter(SiteManagerAdapter,
@@ -181,6 +197,8 @@ def lockingTearDown(test):
     gsm.unregisterAdapter(DemoKeyReference,
                           (IDemo,),
                           zope.app.keyreference.interfaces.IKeyReference)
+    gsm.unregisterAdapter(PhysicallyLocatable, (Demo,))
+    gsm.unregisterAdapter(PhysicallyLocatable, (DemoFolder,))
     gsm.unregisterAdapter(DemoKeyReference, (IDemoFolder,),
                           zope.app.keyreference.interfaces.IKeyReference)
     gsm.unregisterAdapter(SiteManagerAdapter,

@@ -46,9 +46,13 @@
      />
 
   <subscriber
-     for="zope.interface.Interface
-          zope.app.container.interfaces.IObjectAddedEvent"
-     handler=".manager.indirectlyLockObjectOnAdd"
+     for="zope.app.container.interfaces.IObjectMovedEvent"
+     handler=".manager.indirectlyLockObjectOnMovedEvent"
+     />
+
+  <subscriber
+     for="zope.lifecycleevent.ObjectModifiedEvent"
+     handler=".manager.checkLockedOnModify"
      />
 
 </configure>
