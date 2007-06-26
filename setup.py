@@ -1,10 +1,10 @@
 from setuptools import setup, find_packages
 
 setup(name = "z3c.davapp.zopelocking",
-      version = "0.1",
+      version = "0.9",
       author = "Michael Kerrin",
       author_email = "michael.kerrin@openapp.ie",
-      url = "http://svn.zope.org/",
+      url = "http://launchpad.net/z3c.dav",
       description = "WebDAV locking support using zope.locking",
       license = "ZPL",
 
@@ -17,8 +17,6 @@ setup(name = "z3c.davapp.zopelocking",
                           "zope.app.keyreference",
                           "zc.i18n",
                           ],
-
-      extras_require = dict(test = ["cElementTree"]),
 
       include_package_data = True,
       zip_safe = False)
