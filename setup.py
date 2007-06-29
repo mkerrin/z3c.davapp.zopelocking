@@ -18,5 +18,7 @@ setup(name = "z3c.davapp.zopelocking",
                           "zc.i18n",
                           ],
 
+      extras_require = dict(test = ["cElementTree"]),
+
       include_package_data = True,
       zip_safe = False)
