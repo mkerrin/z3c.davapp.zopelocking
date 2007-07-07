@@ -1,0 +1,8 @@
+=================================
+Changes in z3c.davapp.zopelocking
+=================================
+
+1.0b
+====
+
+- Initial release.
