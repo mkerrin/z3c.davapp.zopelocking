@@ -148,6 +148,10 @@ class DAVActiveLock(object):
       >>> component.getGlobalSiteManager().registerUtility(
       ...    util, zope.locking.interfaces.ITokenUtility)
 
+    Our utility needs to be persistent so add it to a database connection.
+
+      >>> conn.add(util)
+
       >>> locktoken = tokens.ExclusiveLock(
       ...    resource, 'michael', datetime.timedelta(hours = 1))
       >>> locktoken = util.register(locktoken)
@@ -482,6 +486,7 @@ def DAVLockdiscovery(context, request):
       True
 
       >>> util = TokenUtility()
+      >>> conn.add(util) # add to persistent database
       >>> component.getGlobalSiteManager().registerUtility(
       ...    util, zope.locking.interfaces.ITokenUtility)
       >>> component.getGlobalSiteManager().registerAdapter(DAVActiveLock,

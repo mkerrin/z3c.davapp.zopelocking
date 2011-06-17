@@ -55,6 +55,7 @@ class DAVLockmanager(object):
       >>> util = utility.TokenUtility()
       >>> zope.component.getGlobalSiteManager().registerUtility(
       ...    util, zope.locking.interfaces.ITokenUtility)
+      >>> conn.add(util) # add to persistent database
       >>> zope.component.getGlobalSiteManager().registerAdapter(
       ...    TokenBroker, (zope.interface.Interface,),
       ...    zope.locking.interfaces.ITokenBroker)
@@ -528,6 +529,7 @@ def indirectlyLockObjectOnMovedEvent(event):
       >>> util = utility.TokenUtility()
       >>> zope.component.getGlobalSiteManager().registerUtility(
       ...    util, zope.locking.interfaces.ITokenUtility)
+      >>> conn.add(util) # add to persistent database
 
       >>> demofolder = DemoFolder()
 
@@ -769,6 +771,7 @@ def checkLockedOnModify(event):
       >>> util = utility.TokenUtility()
       >>> zope.component.getGlobalSiteManager().registerUtility(
       ...    util, zope.locking.interfaces.ITokenUtility)
+      >>> conn.add(util) # add to persistent database
 
       >>> demofolder = DemoFolder()
       >>> demofile = Demo()

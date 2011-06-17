@@ -39,6 +39,7 @@ class IndirectToken(persistent.Persistent):
       >>> util = utility.TokenUtility()
       >>> zope.component.getGlobalSiteManager().registerUtility(
       ...    util, zope.locking.interfaces.ITokenUtility)
+      >>> conn.add(util) # add to persistent database
 
     Setup some content to test on.
 
@@ -305,6 +306,7 @@ class IndirectToken(persistent.Persistent):
     Setup with wrong utility.
 
       >>> util2 = utility.TokenUtility()
+      >>> conn.add(util2) # add to persistent database
       >>> roottoken = zope.locking.tokens.ExclusiveLock(demofolder, 'michael2')
       >>> roottoken = util2.register(roottoken)
       >>> roottoken.utility == util2

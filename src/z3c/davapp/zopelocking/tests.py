@@ -16,6 +16,10 @@
 import UserDict
 import unittest
 
+import ZODB.DB
+import ZODB.MappingStorage
+import transaction
+
 import zope.component
 import zope.interface
 from zope.testing import doctest
@@ -176,6 +180,10 @@ def lockingSetUp(test):
                         (zope.schema.interfaces.IURI,
                          z3c.dav.interfaces.IWebDAVRequest))
 
+    # Need connection to a database to manage locking
+    db = test.globs["db"] = ZODB.DB(ZODB.MappingStorage.MappingStorage())
+    test.globs["conn"] = db.open()
+
     # expose these classes to the test
     test.globs["Demo"] = Demo
     test.globs["DemoFolder"] = DemoFolder
@@ -227,6 +235,10 @@ def lockingTearDown(test):
                            z3c.dav.interfaces.IWebDAVRequest))
 
     endInteraction()
+
+    transaction.abort()
+    test.globs["conn"].close()
+    test.globs["db"].close()
 
 
 def test_suite():
