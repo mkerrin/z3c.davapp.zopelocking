@@ -11,10 +11,10 @@
 # FOR A PARTICULAR PURPOSE.
 #
 ##############################################################################
-"""
-"""
+
 import UserDict
 import unittest
+import doctest
 
 import ZODB.DB
 import ZODB.MappingStorage
@@ -22,7 +22,6 @@ import transaction
 
 import zope.component
 import zope.interface
-from zope.testing import doctest
 from zope.security.testing import Principal
 from zope.publisher.browser import TestRequest
 from zope.security.management import newInteraction, endInteraction, \
