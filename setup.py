@@ -21,6 +21,7 @@ setup(name = "z3c.davapp.zopelocking",
       packages = find_packages("src"),
       package_dir = {"": "src"},
       namespace_packages = ["z3c", "z3c.davapp"],
+
       install_requires = ["setuptools",
                           "z3c.dav",
                           "zope.locking",
