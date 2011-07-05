@@ -30,8 +30,8 @@ import zope.event
 from zope.traversing.interfaces import IPhysicallyLocatable
 from zope.app.testing import placelesssetup
 from zope.component.interfaces import IComponentLookup
-from zope.app.component.site import SiteManagerAdapter
-from zope.app.container.interfaces import IContained, IContainer
+from zope.site.site import SiteManagerAdapter
+from zope.container.interfaces import IContained, IContainer
 import zope.app.keyreference.interfaces
 import zope.annotation.interfaces
 import zope.traversing.browser.interfaces

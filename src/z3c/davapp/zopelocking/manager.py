@@ -22,7 +22,7 @@ import zope.interface
 import zope.security.management
 import zope.publisher.interfaces.http
 import zope.lifecycleevent.interfaces
-from zope.app.container.interfaces import IReadContainer
+import zope.container.interfaces
 import z3c.dav.interfaces
 import z3c.dav.locking
 import z3c.dav.ifvalidator
@@ -334,7 +334,8 @@ class DAVLockmanager(object):
 
     def maybeRecursivelyLockIndirectly(self, utility,
                                        context, roottoken, depth):
-        if depth == "infinity" and IReadContainer.providedBy(context):
+        if depth == "infinity" and \
+               zope.container.interfaces.IReadContainer.providedBy(context):
             for subob in context.values():
                 token = utility.get(subob)
                 if token:
@@ -487,7 +488,7 @@ def getPrincipalId():
 
 BROWSER_METHODS = ("GET", "HEAD", "POST")
 
-@zope.component.adapter(zope.app.container.interfaces.IObjectMovedEvent)
+@zope.component.adapter(zope.container.interfaces.IObjectMovedEvent)
 def indirectlyLockObjectOnMovedEvent(event):
     """
     This event handler listens for IObjectAddedEvent, IObjectRemovedEvent as
@@ -499,9 +500,9 @@ def indirectlyLockObjectOnMovedEvent(event):
       >>> from zope.locking import utility
       >>> from zope.publisher.browser import TestRequest
       >>> from zope.security.proxy import removeSecurityProxy
-      >>> from zope.app.container.contained import ObjectAddedEvent
-      >>> from zope.app.container.contained import ObjectRemovedEvent
-      >>> from zope.app.container.contained import ObjectMovedEvent
+      >>> from zope.container.contained import ObjectAddedEvent
+      >>> from zope.container.contained import ObjectRemovedEvent
+      >>> from zope.container.contained import ObjectMovedEvent
 
       >>> class ReqAnnotation(UserDict.IterableUserDict):
       ...    zope.interface.implements(zope.annotation.interfaces.IAnnotations)

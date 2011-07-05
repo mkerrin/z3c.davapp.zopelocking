@@ -46,7 +46,7 @@
      />
 
   <subscriber
-     for="zope.app.container.interfaces.IObjectMovedEvent"
+     for="zope.container.interfaces.IObjectMovedEvent"
      handler=".manager.indirectlyLockObjectOnMovedEvent"
      />
 
