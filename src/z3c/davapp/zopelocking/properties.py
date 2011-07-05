@@ -535,7 +535,9 @@ def DAVLockdiscovery(context, request):
       True
 
     """
-    utility = component.queryUtility(zope.locking.interfaces.ITokenUtility)
+    utility = component.queryUtility(
+        zope.locking.interfaces.ITokenUtility,
+        context = context)
     if utility is None:
         return None
     return DAVLockdiscoveryAdapter(context, request, utility)
