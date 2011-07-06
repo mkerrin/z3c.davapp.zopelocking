@@ -23,11 +23,17 @@ setup(name = "z3c.davapp.zopelocking",
       namespace_packages = ["z3c", "z3c.davapp"],
 
       install_requires = ["setuptools",
+
                           "z3c.dav",
+
                           "zope.locking",
                           "zope.app.keyreference",
                           "zc.i18n",
                           ],
+
+      extras_require = dict(
+          test = ["z3c.etree"],
+          ),
 
       include_package_data = True,
       zip_safe = False)
