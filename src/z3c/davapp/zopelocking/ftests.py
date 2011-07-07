@@ -21,14 +21,12 @@ import unittest
 import datetime
 import transaction
 from cStringIO import StringIO
-import os.path
 
 import z3c.dav.testing
 import z3c.dav.ftests.dav
 
 from zope import component
 from zope.app.publication.http import MethodNotAllowed
-from zope.app.testing.setup import addUtility
 import zope.locking.interfaces
 from zope.locking.utility import TokenUtility
 from zope.locking import tokens
@@ -40,26 +38,29 @@ import z3c.dav.publisher
 import z3c.etree
 from z3c.etree.testing import assertXMLEqual
 
-here = os.path.dirname(os.path.realpath(__file__))
-WebDAVLockingLayer = z3c.dav.testing.WebDAVLayerClass(
-   os.path.join(here, "ftesting.zcml"), __name__, "WebDAVLockingLayer")
-
+davlayer = z3c.dav.testing.WebDAVLayer(z3c.davapp.zopelocking)
+    
 
 class LOCKNotAllowedTestCase(z3c.dav.ftests.dav.DAVTestCase):
 
-    layer = WebDAVLockingLayer
+    layer = davlayer
 
     def test_lock_file(self):
         file = self.addResource("/testfilenotallowed", "some file content",
                                 contentType = "text/plain")
         self.assertRaises(MethodNotAllowed, self.publish,
-            "/testfilenotallowed", basic = "mgr:mgrpw")
+                          "/testfilenotallowed",
+                          env = {"REQUEST_METHOD": "NOTALLOWED"},
+                          basic = "mgr:mgrpw")
 
-    def test_options(self):
+    def test_method_not_allowed(self):
         file = self.addResource("/testfilenotallowed", "some file content",
                                 contentType = "text/plain")
-        response = self.publish("/testfilenotallowed", basic = "mgr:mgrpw",
-                                handle_errors = True)
+        response = self.publish(
+            "/testfilenotallowed",
+            env = {"REQUEST_METHOD": "NOTALLOWED"},
+            basic = "mgr:mgrpw",
+            handle_errors = True)
 
         allowed = [allow.strip() for allow in
                    response.getHeader("Allow").split(",")]
@@ -92,7 +93,7 @@ class LOCKNotAllowedTestCase(z3c.dav.ftests.dav.DAVTestCase):
 
 class LOCKTestCase(z3c.dav.ftests.dav.DAVTestCase):
 
-    layer = WebDAVLockingLayer
+    layer = davlayer
 
     def _setup(self):
         z3c.dav.ftests.dav.DAVTestCase.setUp(self)
@@ -106,9 +107,13 @@ class LOCKTestCase(z3c.dav.ftests.dav.DAVTestCase):
         self._setup()
 
         sitemanager = component.getSiteManager(self.getRootFolder())
-        self.utility = addUtility(sitemanager, "",
-                                  zope.locking.interfaces.ITokenUtility,
-                                  TokenUtility())
+        name = zope.locking.interfaces.ITokenUtility.__name__
+
+        sitemanager["default"][name] = TokenUtility()
+        self.utility =  sitemanager["default"][name]
+        sitemanager.registerUtility(
+            self.utility, zope.locking.interfaces.ITokenUtility)
+
         transaction.commit()
 
     def _teardown(self):
@@ -126,11 +131,14 @@ class LOCKTestCase(z3c.dav.ftests.dav.DAVTestCase):
                                       "")
         del self.utility
 
-    def test_options(self):
-        file = self.addResource("/testfilenotallowed", "some file content",
-                                contentType = "text/plain")
-        response = self.publish("/testfilenotallowed", basic = "mgr:mgrpw",
-                                handle_errors = True)
+    def test_method_not_allowed(self):
+        file = self.addResource(
+            "/testfilenotallowed", "some file content", contentType = "text/plain")
+        response = self.publish(
+            "/testfilenotallowed",
+            env = {"REQUEST_METHOD": "NOTALLOWED"},
+            basic = "mgr:mgrpw",
+            handle_errors = True)
 
         allowed = [allow.strip() for allow in
                    response.getHeader("Allow").split(",")]
@@ -259,7 +267,7 @@ class LOCKTestCase(z3c.dav.ftests.dav.DAVTestCase):
             handle_errors = True)
 
         self.assertEqual(response.getStatus(), 423)
-        self.assertEqual(response.getHeader("content-type"), None)
+        self.assertEqual(response.getHeader("Content-Type"), None)
         self.assertEqual(response.getBody(), "")
 
         lockmanager = IDAVLockmanager(file)
@@ -611,15 +619,17 @@ class LOCKTestCase(z3c.dav.ftests.dav.DAVTestCase):
 
 class UNLOCKTestCase(z3c.dav.ftests.dav.DAVTestCase):
 
-    layer = WebDAVLockingLayer
+    layer = davlayer
 
     def setUp(self):
         super(UNLOCKTestCase, self).setUp()
 
         sitemanager = component.getSiteManager(self.getRootFolder())
-        self.utility = addUtility(sitemanager, "",
-                                  zope.locking.interfaces.ITokenUtility,
-                                  TokenUtility())
+        name = zope.locking.interfaces.ITokenUtility.__name__
+        sitemanager["default"][name] = TokenUtility()
+        self.utility =  sitemanager["default"][name]
+        sitemanager.registerUtility(
+            self.utility, zope.locking.interfaces.ITokenUtility)
 
     def tearDown(self):
         del self.utility
