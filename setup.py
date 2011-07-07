@@ -27,12 +27,14 @@ setup(name = "z3c.davapp.zopelocking",
                           "z3c.dav",
 
                           "zope.locking",
+                          "zope.app.form", # zope.locking should depend on this
                           "zope.app.keyreference",
                           "zc.i18n",
                           ],
 
       extras_require = dict(
-          test = ["z3c.etree"],
+          test = ["z3c.etree",
+                  ],
           ),
 
       include_package_data = True,
